@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>魔果海域 · Mystic Seas</title>
+  <meta name="description" content="在五座島嶼間航行：接任務、打倒首領、尋找魔果獲得能力。 Sail between five islands: take quests, defeat bosses, and find mystic fruits that grant powers.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=1">
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+  </script>
+</head>
+<body>
+  <canvas id="view"></canvas>
+
+  <div id="title">
+    <div class="logo"><span class="zh">魔果海域</span><span class="en">MYSTIC SEAS</span></div>
+    <p id="t-sub"></p>
+    <div class="row"><button id="t-cont" class="go big"></button><button id="t-new"></button><button id="t-lang"></button></div>
+    <p id="t-help" class="help"></p>
+  </div>
+
+  <div id="hud" hidden>
+    <div id="vit">
+      <div class="lv"><small>Lv</small><b id="lv">1</b></div>
+      <div class="bars">
+        <div class="bar hp"><i id="hpb"></i><span id="hpt"></span></div>
+        <div class="bar en"><i id="enb"></i><span id="ent"></span></div>
+        <div class="bar xp"><i id="xpb"></i><span id="xpt"></span></div>
+      </div>
+      <div class="money"><span class="gold"><i class="coin"></i><b id="gold">0</b></span><span id="pts" hidden></span></div>
+    </div>
+    <div id="tracker" hidden></div>
+    <div id="bossbar" hidden><b id="bossname"></b><div class="bar"><i id="bossb"></i></div></div>
+    <div id="minimap"><canvas id="mini" width="300" height="300"></canvas><div class="mbtns"><button id="b-map"></button><button id="b-menu"></button><button id="b-music">♪</button></div></div>
+    <div id="dock"><div id="weapons"></div><div id="skills"></div></div>
+    <div id="prompt" hidden></div>
+    <div id="stick" hidden><div id="knob"></div></div>
+    <div id="touch"><button id="b-e">E</button><button id="b-dash">»</button><button id="b-jump">⤒</button><button id="b-atk">⚔</button></div>
+  </div>
+  <div id="floats"></div>
+  <div id="banner"></div>
+  <div id="toast"></div>
+  <div id="hurt"></div>
+  <div id="panel" hidden></div>
+
+  <script type="module" src="js/main.js?v=1"></script>
+  <script src="/hub.js" data-pos="top-left" defer></script>
+</body>
+</html>

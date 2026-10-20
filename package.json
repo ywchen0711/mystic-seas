@@ -1,0 +1,1 @@
+{ "name": "mystic-seas", "private": true, "type": "module", "scripts": { "test": "node tools/test.mjs" } }
