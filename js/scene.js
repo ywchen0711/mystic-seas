@@ -1,7 +1,7 @@
 // MYSTIC SEAS — everything you see: island terrain, the sea, trees and huts, people, the boat, and skill effects.
 import * as THREE from 'three';
-import { ISLANDS } from './data.js';
-import { heightAt, SEA_FLOOR } from './world.js';
+import { ISLANDS } from './data.js?v=2';
+import { heightAt, SEA_FLOOR } from './world.js?v=2';
 
 const tcache = new Map();
 function ctex(key, w, h, draw) {
@@ -9,7 +9,10 @@ function ctex(key, w, h, draw) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; tcache.set(key, t); return t;
 }
-const GROUND = { grass: ['#e8d8a0', '#5cc048', '#3e9a38', '#8a8a80'], sand: ['#f0dca0', '#e6c27a', '#d8a860', '#b88a58'], snow: ['#e0e4ea', '#f4f8ff', '#e8f0fa', '#a8b4c8'], stone: ['#d8cfa8', '#9aa0a8', '#8a9098', '#6a7078'] };
+const GROUND = { grass: ['#f2e2aa', '#6ccc4a', '#3a9a3a', '#8a8a80'], sand: ['#f6e4ac', '#ecc882', '#dca862', '#b88a58'], snow: ['#e6eaf0', '#f8fbff', '#e8f0fa', '#a8b4c8'], stone: ['#e0d6b0', '#a0a6ae', '#8a9098', '#6a7078'] };
+// a three-step light ramp for the cel-shaded look of people, trees and huts
+export const toonRamp = (() => { const t = new THREE.DataTexture(new Uint8Array([110, 190, 255]), 3, 1, THREE.RedFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
+const toon = (c, o = {}) => new THREE.MeshToonMaterial({ color: c, gradientMap: toonRamp, ...o });
 
 // ---------------------------------------------------------------- the islands and the sea
 export function buildWorld(scene, L) {
@@ -22,8 +25,10 @@ export function buildWorld(scene, L) {
       const slope = Math.abs(heightAt(x + 1, z) - y) + Math.abs(heightAt(x, z + 1) - y);
       if (y < 1.4) c.copy(pal[0]); else c.copy(pal[1]).lerp(pal[2], Math.min(1, (y - 1.4) / (isl.h * 0.8)));
       if (slope > 1.4) c.lerp(pal[3], 0.7);
-      if (y < 0) c.lerp(new THREE.Color('#c8b888'), 0.6);
-      const n = (Math.sin(x * 0.7) * Math.cos(z * 0.6)) * 0.04; c.offsetHSL(0, 0, n);
+      // under the water: bright sand in the shallows (it shows turquoise through the sea), darker further out, and foam at the edge
+      if (y < 0.05) c.copy(new THREE.Color('#f4e8c0')).lerp(new THREE.Color('#2a7a98'), Math.min(1, Math.max(0, -y / 5)));
+      if (y < 0.05 && y > -0.4) c.lerp(new THREE.Color('#ffffff'), 0.75 * (1 - Math.abs(y + 0.15) / 0.25));
+      const n = (Math.sin(x * 0.7) * Math.cos(z * 0.6) + Math.sin(x * 2.3 + z * 1.7) * 0.4) * 0.05; c.offsetHSL(0.005 * Math.sin(x * 0.3), 0, n);
       cols[i * 3] = c.r; cols[i * 3 + 1] = c.g; cols[i * 3 + 2] = c.b;
     }
     geo.setAttribute('color', new THREE.BufferAttribute(cols, 3)); geo.computeVertexNormals();
@@ -34,7 +39,7 @@ export function buildWorld(scene, L) {
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), new THREE.MeshStandardMaterial({ color: '#2a6a8a', roughness: 1 })); floor.rotation.x = -Math.PI / 2; floor.position.y = SEA_FLOOR + 0.05; group.add(floor);
   const waves = ctex('waves', 256, 256, (g, w) => { const img = g.createImageData(w, w); for (let y = 0; y < w; y++) for (let x = 0; x < w; x++) { const v = 128 + 50 * Math.sin(x / w * Math.PI * 8 + Math.sin(y / w * Math.PI * 4) * 2) + 30 * Math.sin(y / w * Math.PI * 10); const i = (y * w + x) * 4; img.data[i] = v; img.data[i + 1] = 128 + 40 * Math.cos(y / w * Math.PI * 6); img.data[i + 2] = 255; img.data[i + 3] = 255; } g.putImageData(img, 0, 0); });
   waves.repeat.set(160, 160); waves.colorSpace = THREE.NoColorSpace;
-  const sea = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), new THREE.MeshStandardMaterial({ color: '#1e90d8', roughness: 0.25, metalness: 0.1, transparent: true, opacity: 0.8, normalMap: waves, normalScale: new THREE.Vector2(0.35, 0.35) }));
+  const sea = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), new THREE.MeshStandardMaterial({ color: '#1a86d0', roughness: 0.15, metalness: 0.15, transparent: true, opacity: 0.72, normalMap: waves, normalScale: new THREE.Vector2(0.4, 0.4) }));
   sea.rotation.x = -Math.PI / 2; sea.position.y = 0; group.add(sea);
   // trees: two instanced meshes per kind (trunk, crown)
   const kinds = { palm: [['cyl', 0.25, 0.35, 5, '#8a6a40'], ['fronds', 2.6, '#3caa3c']], jungle: [['cyl', 0.4, 0.55, 5, '#6a4a2a'], ['sphere', 2.6, '#2a8a34']],
@@ -48,7 +53,7 @@ export function buildWorld(scene, L) {
     else if (crown[0] === 'cone') { cg = new THREE.ConeGeometry(crown[1], 6, 8); cg.translate(0, trunk[3] + 3, 0); }
     else { cg = new THREE.CylinderGeometry(0.3, 0.3, 1.6, 6); cg.rotateZ(Math.PI / 2); cg.translate(0, 2.2, 0); }
     if (kind === 'pine' && list.some(() => true)) { /* snowy tips are part of the colour */ }
-    const ti = new THREE.InstancedMesh(tg, new THREE.MeshStandardMaterial({ color: trunk[4], roughness: 0.9 }), list.length), ci = new THREE.InstancedMesh(cg, new THREE.MeshStandardMaterial({ color: kind === 'pine' ? '#3a7a5a' : crown[2], roughness: 0.8, flatShading: true }), list.length);
+    const ti = new THREE.InstancedMesh(tg, toon(trunk[4]), list.length), ci = new THREE.InstancedMesh(cg, toon(kind === 'pine' ? '#3a7a5a' : crown[2]), list.length);
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
     list.forEach(([x, y, z, sc], i) => { q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), x * 7.1); s.set(sc, sc, sc); p.set(x, y - 0.2, z); m4.compose(p, q, s); ti.setMatrixAt(i, m4); ci.setMatrixAt(i, m4); });
     ti.castShadow = ci.castShadow = true; group.add(ti, ci);
@@ -61,7 +66,7 @@ export function buildWorld(scene, L) {
     ri.castShadow = true; group.add(ri);
   }
   // huts, towers and the fortress walls
-  const wood = new THREE.MeshStandardMaterial({ color: '#b07a48', roughness: 0.9 }), roofM = new THREE.MeshStandardMaterial({ color: '#c84a3a', roughness: 0.8, flatShading: true }), stone = new THREE.MeshStandardMaterial({ color: '#c8c8c0', roughness: 0.9 });
+  const wood = toon('#c08a50'), roofM = toon('#d8503a'), stone = toon('#d0d0c8');
   for (const [x, y, z, w, d, rot, isl, kind] of L.huts) {
     const g = new THREE.Group();
     if (kind === 'tower') { const t = new THREE.Mesh(new THREE.CylinderGeometry(4, 4.6, 12, 12), stone); t.position.y = 6; const r = new THREE.Mesh(new THREE.ConeGeometry(5, 4, 12), new THREE.MeshStandardMaterial({ color: '#2a4a8a', flatShading: true })); r.position.y = 14; g.add(t, r); }
@@ -81,8 +86,28 @@ export function buildWorld(scene, L) {
     const pier = new THREE.Mesh(new THREE.BoxGeometry(3, 0.4, 14), wood); pier.position.set(p.x + ux * 6, 0.6, p.z + uz * 6); pier.rotation.y = Math.atan2(ux, uz); pier.receiveShadow = true; group.add(pier);
     for (const s of [-1, 1]) for (const k of [0, 1, 2]) { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 3), wood); post.position.set(p.x + ux * (1 + k * 5) + uz * s * 1.4, -0.6, p.z + uz * (1 + k * 5) - ux * s * 1.4); group.add(post); }
   }
+  // flowers and tufts of grass on the green islands
+  {
+    const spots = [], r = (() => { let a = 7; return () => { a = (a * 16807) % 2147483647; return a / 2147483647; }; })();
+    for (const isl of ISLANDS) { if (isl.ground !== 'grass') continue; for (let i = 0; i < 900; i++) { const a = r() * 6.283, d = Math.sqrt(r()) * isl.r * 0.95, x = isl.c[0] + Math.cos(a) * d, z = isl.c[1] + Math.sin(a) * d, y = heightAt(x, z); if (y < 1.6 || Math.abs(heightAt(x + 1, z) - y) > 0.8) continue; spots.push([x, y, z, r()]); } }
+    const blade = new THREE.ConeGeometry(0.12, 0.7, 3); blade.translate(0, 0.35, 0);
+    const tufts = new THREE.InstancedMesh(blade, toon('#4ab83a'), spots.length * 3), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3();
+    spots.forEach(([x, y, z, k], i) => { for (let j = 0; j < 3; j++) { q.setFromEuler(new THREE.Euler((j - 1) * 0.35, k * 6 + j, 0)); sc.setScalar(0.7 + k * 0.6); p.set(x + (j - 1) * 0.15, y - 0.05, z); m4.compose(p, q, sc); tufts.setMatrixAt(i * 3 + j, m4); } });
+    group.add(tufts);
+    const petals = new THREE.IcosahedronGeometry(0.1, 0), flowers = spots.filter((s2) => s2[3] < 0.35);
+    const COLS = ['#ff7ab0', '#ffe060', '#ffffff', '#b890ff'].map((c2) => new THREE.Color(c2));
+    const fl = new THREE.InstancedMesh(petals, new THREE.MeshToonMaterial({ gradientMap: toonRamp }), flowers.length);
+    flowers.forEach(([x, y, z, k], i) => { m4.makeTranslation(x + 0.3, y + 0.35, z + 0.2); fl.setMatrixAt(i, m4); fl.setColorAt(i, COLS[Math.floor(k * 11) % 4]); });
+    group.add(fl);
+  }
+  // the sun, and soft clouds drifting high above
+  const sunTex = ctex('sundisc', 128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,240,1)'); gr.addColorStop(0.25, 'rgba(255,250,220,0.95)'); gr.addColorStop(0.5, 'rgba(255,230,170,0.35)'); gr.addColorStop(1, 'rgba(255,220,150,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); });
+  const sunDisc = new THREE.Sprite(new THREE.SpriteMaterial({ map: sunTex, transparent: true, depthWrite: false, fog: false, toneMapped: false })); sunDisc.scale.set(160, 160, 1); group.add(sunDisc);
+  const cloudTex = ctex('cloud', 256, 128, (g) => { for (let i = 0; i < 14; i++) { const x = 40 + Math.random() * 176, y = 50 + Math.random() * 40, r2 = 22 + Math.random() * 30, gr = g.createRadialGradient(x, y, 0, x, y, r2); gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 256, 128); } });
+  const clouds = [];
+  for (let i = 0; i < 26; i++) { const c2 = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, depthWrite: false, opacity: 0.85, fog: false })); const a = i / 26 * 6.283 + Math.random(), d = 250 + Math.random() * 380; c2.position.set(Math.cos(a) * d, 70 + Math.random() * 60, Math.sin(a) * d); const s2 = 90 + Math.random() * 90; c2.scale.set(s2, s2 * 0.45, 1); group.add(c2); clouds.push(c2); }
   scene.add(group);
-  return { group, sea, waves };
+  return { group, sea, waves, sunDisc, clouds };
 }
 
 // ---------------------------------------------------------------- characters
@@ -97,7 +122,7 @@ const HATS = {
   none: () => new THREE.Group(),
 };
 const mcache = new Map();
-function mat(c) { if (!mcache.has(c)) mcache.set(c, new THREE.MeshStandardMaterial({ color: c, roughness: 0.7 })); return mcache.get(c); }
+function mat(c) { if (!mcache.has(c)) mcache.set(c, toon(c)); return mcache.get(c); }
 function box(w, h, d, c, x, y, z) { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c)); b.position.set(x, y, z); b.castShadow = true; return b; }
 // a blocky figure: [body colour, head colour, hat]; scale
 export function makeCharacter(look, size = 1) {
@@ -116,14 +141,33 @@ export function makeCharacter(look, size = 1) {
   return g;
 }
 export function swordMesh(color) { const g = new THREE.Group(); const blade = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 1.6), new THREE.MeshStandardMaterial({ color: '#e8eef8', metalness: 0.8, roughness: 0.2, emissive: color, emissiveIntensity: 0.25 })); blade.position.z = 0.9; const guard = box(0.4, 0.08, 0.1, '#c8a040', 0, 0, 0.1); g.add(blade, guard); return g; }
-// pose: walking, in the air, swimming, swinging (atk 0..1)
+// pose: walking, in the air, swimming, swinging (atk 0..1). Every limb eases towards where it should be, so poses
+// blend into each other; running bobs and leans forward, standing still breathes, and landing squashes a little.
 export function pose(ch, dt, st) {
-  const u = ch.userData;
-  if (st.swim) { u.phase += dt * 6; const s = Math.sin(u.phase); u.la.rotation.x = -2.8 + s; u.ra.rotation.x = -2.8 - s; u.ll.rotation.x = s * 0.5; u.rl.rotation.x = -s * 0.5; u.inner.rotation.x = 1.2; return; }
-  u.inner.rotation.x = 0;
-  if (st.air) { u.la.rotation.x = -2.6; u.ra.rotation.x = -2.6; u.ll.rotation.x = 0.5; u.rl.rotation.x = -0.4; }
-  else { u.phase += dt * st.speed * 1.2; const s = Math.sin(u.phase) * Math.min(1, st.speed / 5); u.la.rotation.x = s; u.ra.rotation.x = -s; u.ll.rotation.x = -s; u.rl.rotation.x = s; }
-  if (st.atk > 0) { const k = st.atk; u.ra.rotation.x = -2.2 + (1 - k) * 2.6; u.ra.rotation.z = -0.4 * k; } else u.ra.rotation.z = 0;
+  const u = ch.userData, k = Math.min(1, dt * 14), size = u.size || 1;
+  u.t = (u.t || 0) + dt;
+  let la = 0, ra = 0, ll = 0, rl = 0, lean = 0, bob = 0;
+  if (st.swim) { u.phase += dt * 6; const s = Math.sin(u.phase); la = -2.8 + s; ra = -2.8 - s; ll = s * 0.5; rl = -s * 0.5; lean = 1.2; }
+  else if (st.air) { la = -2.5; ra = -2.5; ll = 0.6; rl = -0.5; lean = -0.08; }
+  else {
+    const sp = st.speed || 0, f = Math.min(1, sp / 6);
+    u.phase += dt * (3 + sp * 1.25);
+    const s = Math.sin(u.phase) * f;
+    la = s * 1.1; ra = -s * 1.1; ll = -s; rl = s; lean = f * 0.16; bob = Math.abs(Math.cos(u.phase)) * 0.1 * f;
+    if (sp < 0.5) { const br = Math.sin(u.t * 2.2); la = br * 0.04; ra = -br * 0.04; bob = br * 0.015; }
+  }
+  let rk = k;
+  if (st.atk > 0) { const p = 1 - st.atk, e = 1 - Math.pow(1 - p, 3); ra = -2.5 + e * 3.1; rk = Math.min(1, dt * 40); u.ra.rotation.z += (-0.5 * st.atk - u.ra.rotation.z) * rk; }
+  else u.ra.rotation.z += (0 - u.ra.rotation.z) * k;
+  u.la.rotation.x += (la - u.la.rotation.x) * k; u.ra.rotation.x += (ra - u.ra.rotation.x) * rk;
+  u.ll.rotation.x += (ll - u.ll.rotation.x) * k; u.rl.rotation.x += (rl - u.rl.rotation.x) * k;
+  u.inner.rotation.x += (lean - u.inner.rotation.x) * k;
+  u.inner.position.y += (bob - u.inner.position.y) * Math.min(1, dt * 20);
+  // a little squash on landing, a stretch in the air, and a jolt when hit
+  if (u.wasAir && !st.air && !st.swim) u.squash = 1;
+  u.wasAir = !!st.air; u.squash = Math.max(0, (u.squash || 0) - dt * 5); u.punch = Math.max(0, (u.punch || 0) - dt * 6);
+  const sq = u.squash, pu = u.punch;
+  u.inner.scale.set(size * (1 + sq * 0.12 + pu * 0.15), size * (1 - sq * 0.15 + (st.air ? 0.04 : 0) + pu * 0.1), size * (1 + sq * 0.12 + pu * 0.15));
 }
 // a floating name and health bar
 export function makeTag(text, color, boss) {

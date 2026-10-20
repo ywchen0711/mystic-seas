@@ -1,11 +1,11 @@
 // MYSTIC SEAS — the page: draws the sea and the islands, reads keyboard / mouse / controller / touch, and runs
 // quests, levels, shops, mystic fruits, boats and the save.
 import * as THREE from 'three';
-import { ISLANDS, ENEMIES, QUESTS, FRUITS, FRUIT_IDS, SWORDS, STYLES, RARITY, MAX_LV, expToNext, enemyExp, enemyBeli, questReward, playerStats, newPlayerData } from './data.js';
-import { heightAt, islandAt, layout, makeRng } from './world.js';
-import { MOVE, newBody, stepBody, spawnEnemy, stepEnemy, skillsOf, masteryOf, cast, swing, stepEffects } from './combat.js';
-import { buildWorld, makeCharacter, swordMesh, pose, makeTag, drawTag, makeBoat, glow, orb, ring, beamMesh, slashMesh } from './scene.js';
-import { Sound } from './audio.js';
+import { ISLANDS, ENEMIES, QUESTS, FRUITS, FRUIT_IDS, SWORDS, STYLES, RARITY, MAX_LV, expToNext, enemyExp, enemyBeli, questReward, playerStats, newPlayerData } from './data.js?v=2';
+import { heightAt, islandAt, layout, makeRng } from './world.js?v=2';
+import { MOVE, newBody, stepBody, spawnEnemy, stepEnemy, skillsOf, masteryOf, cast, swing, stepEffects } from './combat.js?v=2';
+import { buildWorld, makeCharacter, swordMesh, pose, makeTag, drawTag, makeBoat, glow, orb, ring, beamMesh, slashMesh } from './scene.js?v=2';
+import { Sound } from './audio.js?v=2';
 
 const $ = (id) => document.getElementById(id);
 // ---------------------------------------------------------------- language
@@ -29,12 +29,14 @@ const store = () => { try { localStorage.setItem(KEY, JSON.stringify(P)); } catc
 const canvas = $('view');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); renderer.outputColorSpace = THREE.SRGBColorSpace;
+// filmic colour: brighter highlights that do not burn out, richer shadows
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(62, 1, 0.1, 1400);
-scene.background = (() => { const c = document.createElement('canvas'); c.width = 4; c.height = 256; const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#2f8fe0'); gr.addColorStop(0.55, '#8fd0ff'); gr.addColorStop(1, '#dff2ff'); g.fillStyle = gr; g.fillRect(0, 0, 4, 256); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
-scene.fog = new THREE.Fog('#d4ecff', 160, 650);
-scene.add(new THREE.HemisphereLight('#ffffff', '#5a7a90', 0.95));
-const sun = new THREE.DirectionalLight('#fff4dc', 1.7); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+scene.background = (() => { const c = document.createElement('canvas'); c.width = 4; c.height = 256; const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#1f6fd0'); gr.addColorStop(0.45, '#5ab0f0'); gr.addColorStop(0.8, '#b8e2ff'); gr.addColorStop(1, '#f0f8ff'); g.fillStyle = gr; g.fillRect(0, 0, 4, 256); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+scene.fog = new THREE.Fog('#d8eeff', 180, 700);
+scene.add(new THREE.HemisphereLight('#cfe8ff', '#6a7a4a', 1.0));
+const sun = new THREE.DirectionalLight('#fff0d0', 2.3); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: 1, far: 200 }); sun.shadow.bias = -0.0008;
 scene.add(sun, sun.target);
 function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
@@ -282,7 +284,7 @@ function completeQuest() {
 }
 function hurt(dmg) {
   if (S.dead > 0 || me.dashT > 0 || S.mode !== 'play' || S.safe) return;
-  S.hp -= dmg; S.lastHurt = S.playT; sound.play('hurt');
+  S.hp -= dmg; S.lastHurt = S.playT; sound.play('hurt'); shake = Math.max(shake, 0.1); avatar.userData.punch = 0.6;
   const d = $('hurt'); d.classList.remove('on'); void d.offsetWidth; d.classList.add('on');
   float(`-${dmg}`, me.x, me.y + 2.4, me.z, 'me');
   if (S.hp <= 0) die();
@@ -654,9 +656,9 @@ function step(dt) {
       for (const e of ev) sound.play(e === 'thud' ? 'land' : e);
     }
     // seawater saps a fruit eater
-    if (me.swimming && P.fruit) { S.hp -= st.maxHp * 0.06 * dt; S.lastHurt = S.playT; S.drownT -= dt; if (S.drownT <= 0) { S.drownT = 4; toast(L('吃了果實的人會被海水奪走力氣！快上岸或坐船！', 'Seawater saps a fruit eater\'s strength! Get ashore or take a boat!')); } if (S.hp <= 0) die(); }
-    if (S.playT - S.lastHurt > 5) S.hp = Math.min(st.maxHp, S.hp + st.maxHp * 0.04 * dt);
-    S.en = Math.min(st.maxEnergy, S.en + (5 + st.maxEnergy * 0.04) * dt);
+    if (me.swimming && P.fruit) { S.hp -= st.maxHp * 0.03 * dt; S.lastHurt = S.playT; S.drownT -= dt; if (S.drownT <= 0) { S.drownT = 4; toast(L('吃了果實的人會被海水奪走力氣！快上岸或坐船！', 'Seawater saps a fruit eater\'s strength! Get ashore or take a boat!')); } if (S.hp <= 0) die(); }
+    if (S.playT - S.lastHurt > 3) S.hp = Math.min(st.maxHp, S.hp + st.maxHp * 0.06 * dt);
+    S.en = Math.min(st.maxEnergy, S.en + (8 + st.maxEnergy * 0.06) * dt);
   }
   for (const k in S.cds) if (S.cds[k] > 0) S.cds[k] -= dt;
   S.atkCd -= dt; S.comboT -= dt; S.atkAnim = Math.max(0, S.atkAnim - dt * 4);
@@ -674,8 +676,8 @@ function step(dt) {
     if (e.d.boss && e.state === 'chase' && !S.bossSeen[e.uid]) { S.bossSeen[e.uid] = true; sound.play('boss'); banner(N(e.d.name), `Lv ${e.d.lv} · ${L('首領', 'Boss')}`, '#ff7a5a'); }
     if (e.state !== 'chase') S.bossSeen[e.uid] = false;
     e.ch.visible = d < 130; if (!e.ch.visible) continue;
-    e.ch.position.set(e.x, e.y, e.z); e.ch.rotation.y = e.facing;
-    pose(e.ch, dt, { speed: Math.hypot(e.x - px, e.z - pz) / Math.max(dt, 1e-3), atk: e.wind > 0 ? e.wind / 0.35 : 0 });
+    e.ch.position.set(e.x, e.y, e.z); e.ch.rotation.y = lerpAngle(e.ch.rotation.y, e.facing, Math.min(1, dt * 10));
+    pose(e.ch, dt, { speed: Math.hypot(e.x - px, e.z - pz) / Math.max(dt, 1e-3), atk: e.wind > 0 ? e.wind / 0.5 : 0 });
     drawTag(e.tag, e.hp / e.max);
     // the warning ring before a boss slams
     let mk = marks.get(e);
@@ -685,6 +687,9 @@ function step(dt) {
   stepShots(dt);
   // your attacks land
   for (const h of stepEffects(G, dt)) {
+    // a hit makes the enemy jolt and (unless it is a boss) knocks it back a little; the screen shakes on a kill
+    h.e.ch.userData.punch = 1; shake = Math.max(shake, h.killed ? 0.12 : 0.04);
+    if (!h.e.d.boss && h.e.state !== 'dead') { const kx = h.e.x - me.x, kz = h.e.z - me.z, kd = Math.hypot(kx, kz) || 1, nx = h.e.x + kx / kd * 0.7, nz = h.e.z + kz / kd * 0.7; if (heightAt(nx, nz) > 0.3) { h.e.x = nx; h.e.z = nz; } }
     float(fmt(h.dmg), h.x, h.y, h.z, h.killed ? 'kill' : h.weapon); sound.play('hit');
     addMastery(h.weapon, 0.02);
     if (h.weapon === 'fruit' && P.fruit && FRUITS[P.fruit].lifesteal) S.hp = Math.min(st.maxHp, S.hp + h.dmg * FRUITS[P.fruit].lifesteal);
@@ -716,17 +721,22 @@ const pillar = (() => { const c = document.createElement('canvas'); c.width = 32
 scene.add(pillar);
 let last = performance.now(), hudT = 0, miniT = 0, bigT = 0, titleA = 0;
 const BIG = LAY.colliders.filter((c) => c[2] > 2.4 && c[3] > 2);
-let camD = 13;
+let camD = 13, camT = null, visY = null, shake = 0;
 function frame(now) {
   const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
   pollPad(dt);
   if (S.mode === 'play') step(dt);
   W.waves.offset.x += dt * 0.012; W.waves.offset.y += dt * 0.008;
+  // the sun hangs low over the sea behind the camera's view; clouds drift with the wind
+  W.sunDisc.position.set(camera.position.x - 380, 160, camera.position.z - 520);
+  for (const c of W.clouds) { c.position.x += dt * 2.5; if (c.position.x > 700) c.position.x -= 1400; }
   // you, and your boat
   const body = S.riding ? S.boat : me;
-  avatar.position.set(me.x, me.y, me.z);
+  // (the body eases over steps and slopes instead of snapping, and turns smoothly)
+  visY = visY == null || Math.abs(me.y - visY) > 3 ? me.y : visY + (me.y - visY) * Math.min(1, dt * 18);
+  avatar.position.set(me.x, me.grounded ? visY : me.y, me.z); if (!me.grounded) visY = me.y;
   const face = S.riding ? S.boat.yaw : cam.lock && !S.panel ? cam.yaw + Math.PI : me.facing;
-  avatar.rotation.y = lerpAngle(avatar.rotation.y, face, Math.min(1, dt * 16));
+  avatar.rotation.y = lerpAngle(avatar.rotation.y, face, Math.min(1, dt * 12));
   pose(avatar, dt, { swim: me.swimming, air: !me.grounded && !me.swimming, speed: S.riding ? 0 : Math.hypot(me.vx, me.vz), atk: S.atkAnim });
   if (S.boat) { boatMesh.position.set(S.boat.x, Math.sin(now / 700) * 0.15, S.boat.z); boatMesh.rotation.set(0, S.boat.yaw, Math.sin(now / 900) * 0.04); }
   for (const p of people) pose(p.ch, dt, { speed: 0 });
@@ -738,7 +748,11 @@ function frame(now) {
   if (S.mode === 'title') { titleA += dt * 0.05; const c = ISLANDS[0].c; camera.position.set(c[0] + Math.sin(titleA) * 75, 26, c[1] + Math.cos(titleA) * 75); camera.lookAt(c[0], 4, c[1]); }
   else {
     const dist = S.riding ? Math.max(cam.dist, 20) : cam.dist;
-    const target = new THREE.Vector3(body.x, (S.riding ? 1.2 : me.y) + 1.8, body.z), cp = Math.cos(cam.pitch);
+    // (the camera follows smoothly: quickly side to side, more gently up and down, so jumps and slopes do not jolt it)
+    const want = new THREE.Vector3(body.x, (S.riding ? 1.2 : me.y) + 1.8, body.z);
+    if (!camT || camT.distanceTo(want) > 30) camT = want.clone();
+    else { const kx = Math.min(1, dt * 12); camT.x += (want.x - camT.x) * kx; camT.z += (want.z - camT.z) * kx; camT.y += (want.y - camT.y) * Math.min(1, dt * 6); }
+    const target = camT.clone(), cp = Math.cos(cam.pitch);
     const dir = new THREE.Vector3(Math.sin(cam.yaw) * cp, Math.sin(cam.pitch), Math.cos(cam.yaw) * cp);
     // pull in rather than end up inside a hut, a tower or a wall
     let free = dist;
@@ -749,6 +763,7 @@ function frame(now) {
     if (cam.lock) camera.position.add(new THREE.Vector3(Math.cos(cam.yaw), 0, -Math.sin(cam.yaw)).multiplyScalar(1.4));
     camera.position.y = Math.max(camera.position.y, heightAt(camera.position.x, camera.position.z) + 0.8, 0.5);
     camera.lookAt(target);
+    if (shake > 0) { shake = Math.max(0, shake - dt); camera.position.x += (Math.random() - 0.5) * shake * 2; camera.position.y += (Math.random() - 0.5) * shake * 2; }
   }
   sun.position.set(camera.position.x + 30, 80, camera.position.z + 20); sun.target.position.set(me.x, me.y, me.z);
   if (S.mode === 'play') {
@@ -756,7 +771,7 @@ function frame(now) {
     hudT += dt; if (hudT > 0.1) { hudT = 0; hud(); }
     miniT += dt; if (miniT > 0.12) { miniT = 0; drawMini(); } bigT += dt; if (mapOpen && bigT > 0.5) { bigT = 0; drawBigMap(); }
   }
-  renderer.render(scene, camera);
+  if (!S.noRender) renderer.render(scene, camera);
   act.clear();
   requestAnimationFrame(frame);
 }

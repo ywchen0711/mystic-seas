@@ -41,8 +41,9 @@ export const ENEMIES = {
   captain:  E('海軍上校', 'Marine Captain', 110, ['#2a3a6a', '#f0c8a0', 'tricorn']),
   admiral:  E('海軍大將', 'Admiral', 125, ['#f8f8f8', '#f0c8a0', 'tricorn'], { boss: true, size: 1.6, ranged: true }),
 };
-export const enemyHp = (e) => Math.round((60 + e.lv * 24 + Math.pow(e.lv, 1.6) * 2) * (e.boss ? 9 : 1));
-export const enemyDmg = (e) => Math.round((6 + e.lv * 1.5) * (e.boss ? 1.6 : 1));
+// (gentle: enemies have a fifth less health and hit about 40% softer than they first did)
+export const enemyHp = (e) => Math.round((60 + e.lv * 24 + Math.pow(e.lv, 1.6) * 2) * (e.boss ? 9 : 1) * 0.8);
+export const enemyDmg = (e) => Math.round((4 + e.lv * 0.9) * (e.boss ? 1.4 : 1));
 export const enemyExp = (e) => Math.round((10 + e.lv * 6 + Math.pow(e.lv, 1.5)) * (e.boss ? 12 : 1));
 export const enemyBeli = (e) => Math.round((8 + e.lv * 7) * (e.boss ? 15 : 1));
 

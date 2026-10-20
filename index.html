@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1">
+  <link rel="stylesheet" href="style.css?v=2">
   <script type="importmap">
     { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
   </script>
@@ -47,7 +47,12 @@
   <div id="hurt"></div>
   <div id="panel" hidden></div>
 
-  <script type="module" src="js/main.js?v=1"></script>
+  <script>
+    // if the game has not started within a few seconds (an old cached file, or a slow network), say what to do
+    addEventListener('error', function () { var t = document.getElementById('t-help'); if (t && !window.__ms) t.textContent = '載入失敗，請按 Ctrl+F5（手機請重新整理）· Loading failed: please press Ctrl+F5 (or reload on a phone)'; }, true);
+    setTimeout(function () { if (!window.__ms) { var t = document.getElementById('t-sub'); if (t) t.innerHTML = '遊戲還在載入……如果一直停在這裡，請按 Ctrl+F5（手機請重新整理）。<br>Still loading… if it stays here, press Ctrl+F5 (or reload on a phone).'; } }, 9000);
+  </script>
+  <script type="module" src="js/main.js?v=2"></script>
   <script src="/hub.js" data-pos="top-left" defer></script>
 </body>
 </html>

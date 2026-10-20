@@ -1,6 +1,6 @@
 // MYSTIC SEAS — bodies moving over the islands, enemies, and every kind of skill. No DOM (node tests drive it).
-import { ENEMIES, enemyHp, enemyDmg, FRUITS, SWORDS, STYLES, hitDamage } from './data.js';
-import { heightAt, WATER } from './world.js';
+import { ENEMIES, enemyHp, enemyDmg, FRUITS, SWORDS, STYLES, hitDamage } from './data.js?v=2';
+import { heightAt, WATER } from './world.js?v=2';
 
 export const MOVE = { walk: 15, swim: 8, jump: 15, airJump: 14, gravity: 42, dash: 46, dashTime: 0.17 };
 
@@ -55,7 +55,8 @@ export function spawnEnemy(id, camp, i, rng) {
   return { id, d: e, x, z, y: heightAt(x, z), hx: x, hz: z, hp: enemyHp(e), max: enemyHp(e), state: 'idle', cd: 1 + rng(), t: rng() * 3, facing: rng() * 6.28,
     respawn: 0, frozen: 0, slow: 0, wind: 0, special: 6, mark: null, uid: Math.floor(rng() * 1e9), vx: 0, vz: 0 };
 }
-const AGGRO = 22, LEASH = 45;
+// enemies notice you only when you come close, and give up the chase sooner
+const AGGRO = 14, LEASH = 35;
 // one enemy's turn; returns what it does to the player: [{ type: 'hit', dmg }] or shots / slams to show
 export function stepEnemy(e, me, dt, rng) {
   const out = [];
@@ -72,16 +73,16 @@ export function stepEnemy(e, me, dt, rng) {
       if (d > range) { e.x += dx / d * speed * dt; e.z += dz / d * speed * dt; }
       e.cd -= dt;
       if (e.cd <= 0 && d <= range + 0.5) {
-        e.cd = e.d.boss ? 1.1 : 1.5 + rng() * 0.6;
+        e.cd = e.d.boss ? 1.8 : 2.2 + rng() * 0.8;
         if (e.d.ranged && d > 4) out.push({ type: 'shot', x: e.x, y: e.y + 1.4 * (e.d.size || 1), z: e.z, dx: dx / d, dz: dz / d, dmg: enemyDmg(e.d), from: e });
-        else { e.wind = 0.35; }
+        else { e.wind = 0.5; }
       }
       if (e.wind > 0) { e.wind -= dt; if (e.wind <= 0 && d <= range + 1.2) out.push({ type: 'hit', dmg: enemyDmg(e.d), from: e }); }
       // a boss slams the ground where you stand (a red ring warns you first)
-      if (e.d.boss) { e.special -= dt; if (e.special <= 0 && !e.mark) { e.mark = { x: me.x, z: me.z, r: 7 * (e.d.size || 1) * 0.8, t: 1.1 }; e.special = 6 + rng() * 2; } }
+      if (e.d.boss) { e.special -= dt; if (e.special <= 0 && !e.mark) { e.mark = { x: me.x, z: me.z, r: 7 * (e.d.size || 1) * 0.7, t: 1.6 }; e.special = 9 + rng() * 3; } }
     }
   }
-  if (e.mark) { e.mark.t -= dt; if (e.mark.t <= 0) { if (Math.hypot(me.x - e.mark.x, me.z - e.mark.z) < e.mark.r) out.push({ type: 'hit', dmg: Math.round(enemyDmg(e.d) * 2.2), from: e, slam: true }); out.push({ type: 'slam', x: e.mark.x, z: e.mark.z, r: e.mark.r }); e.mark = null; } }
+  if (e.mark) { e.mark.t -= dt; if (e.mark.t <= 0) { if (Math.hypot(me.x - e.mark.x, me.z - e.mark.z) < e.mark.r) out.push({ type: 'hit', dmg: Math.round(enemyDmg(e.d) * 1.6), from: e, slam: true }); out.push({ type: 'slam', x: e.mark.x, z: e.mark.z, r: e.mark.r }); e.mark = null; } }
   if (e.state === 'return') { const hx = e.hx - e.x, hz = e.hz - e.z, hd = Math.hypot(hx, hz); if (hd < 1) { e.state = 'idle'; e.hp = e.max; } else { e.x += hx / hd * speed * 1.4 * dt; e.z += hz / hd * speed * 1.4 * dt; e.facing = Math.atan2(hx, hz); } if (d < AGGRO * 0.6 && !me.dead) e.state = 'chase'; }
   e.y = heightAt(e.x, e.z);
   return out;
